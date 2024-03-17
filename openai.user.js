@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OpenAI.js
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Tampermonkey user script for chatting with LLM endpoints in OpenAI format
 // @author       Hansimov
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=0.1
