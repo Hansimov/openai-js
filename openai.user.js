@@ -44,7 +44,6 @@ async function process_stream_response(response, on_chunk) {
             break;
         }
         let json_chunks = jsonize_stream_data(stringify_stream_bytes(value));
-        console.log("json_chunks:", json_chunks);
         for (let json_chunk of json_chunks) {
             let chunk = json_chunk.choices[0];
             if (on_chunk) {
@@ -53,6 +52,27 @@ async function process_stream_response(response, on_chunk) {
         }
     }
     return content;
+}
+
+let p = document.createElement("p");
+p.id = "response";
+document.body.appendChild(p);
+let response_element = document.getElementById("response");
+
+function on_chunk(chunk) {
+    let delta = chunk.delta;
+    if (delta.role) {
+        // console.log("role:", delta.role);
+    }
+    if (delta.content) {
+        // console.log("content:", delta.content);
+        response_element.innerHTML += delta.content;
+        return delta.content;
+    }
+    if (chunk.finish_reason === "stop") {
+        console.log("[Finished]");
+    }
+    return "";
 }
 
 function get_available_models({ endpoint } = {}) {
@@ -101,10 +121,13 @@ function chat_completions({
                 stream: stream,
             }),
             responseType: stream ? "stream" : "json",
-            onload: function (response) {
+            onloadstart: function (response) {
                 if (stream) {
                     resolve(response);
-                } else {
+                }
+            },
+            onload: function (response) {
+                if (!stream) {
                     let data = JSON.parse(response.responseText);
                     let content = data.choices[0].message.content;
                     resolve(content);
@@ -124,42 +147,22 @@ function chat_completions({
         console.log("models:", models);
     });
     let prompt = "who are you?";
-    console.log("prompt:", prompt);
-
-    let p = document.createElement("p");
-    p.id = "response";
-    document.body.appendChild(p);
-    let response_element = document.getElementById("response");
-
     // chat_completions({
     //     messages: [{ role: "user", content: prompt }],
     //     model: "mixtral-8x7b",
     //     stream: false,
     // }).then((content) => {
     //     console.log("content:", content);
-    //     response_element.innerHTML = content;
     // });
 
+    console.log("prompt", prompt);
     chat_completions({
         messages: [{ role: "user", content: prompt }],
         model: "mixtral-8x7b",
         stream: true,
     }).then((response) => {
-        console.log("response:", response);
-        process_stream_response(response, (chunk) => {
-            let delta = chunk.delta;
-            if (delta.role) {
-                // console.log("role:", delta.role);
-            }
-            if (delta.content) {
-                // console.log("content:", delta.content);
-                response_element.innerHTML += delta.content;
-                return delta.content;
-            }
-            if (chunk.finish_reason === "stop") {
-                console.log("[Finished]");
-            }
-            return "";
+        process_stream_response(response, on_chunk).then((content) => {
+            console.log(content);
         });
     });
 })();
