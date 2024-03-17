@@ -25,7 +25,6 @@ function jsonize_stream_data(data) {
         })
         .map(function (line) {
             try {
-                // TODO: Single line broken into multiple chunks
                 let json_chunk = JSON.parse(line.trim());
                 json_chunks.push(json_chunk);
             } catch {
@@ -33,6 +32,32 @@ function jsonize_stream_data(data) {
             }
         });
     return json_chunks;
+}
+
+function process_stream_response(response, on_chunk) {
+    let reader = response.response.getReader();
+    let content = "";
+
+    function processStream() {
+        return reader.read().then(({ done, value }) => {
+            if (done) {
+                return content;
+            }
+            let json_chunks = jsonize_stream_data(
+                stringify_stream_bytes(value)
+            );
+            console.log("json_chunks:", json_chunks);
+            for (let json_chunk of json_chunks) {
+                let chunk = json_chunk.choices[0];
+                if (on_chunk) {
+                    content += on_chunk(chunk);
+                }
+            }
+            return processStream();
+        });
+    }
+
+    return processStream();
 }
 
 function get_available_models({ endpoint } = {}) {
@@ -84,25 +109,11 @@ function chat_completions({
             responseType: stream ? "stream" : "json",
             onload: function (response) {
                 if (stream) {
-                    let stream_reader = response.response;
-                    let reader = stream_reader.getReader();
-                    let content = "";
-                    reader.read().then(function process_text({ done, value }) {
-                        if (done) {
+                    process_stream_response(response, on_chunk).then(
+                        (content) => {
                             resolve(content);
-                            return;
                         }
-                        let json_chunks = jsonize_stream_data(
-                            stringify_stream_bytes(value)
-                        );
-                        for (let chunk of json_chunks) {
-                            chunk = chunk.choices[0];
-                            if (on_chunk) {
-                                content += on_chunk(chunk);
-                            }
-                        }
-                        reader.read().then(process_text);
-                    });
+                    );
                 } else {
                     let data = JSON.parse(response.responseText);
                     let content = data.choices[0].message.content;
@@ -122,8 +133,14 @@ function chat_completions({
     get_available_models({ endpoint: LLM_ENDPOINT }).then((models) => {
         console.log("models:", models);
     });
-    let prompt = "Hello, who are you?";
+    let prompt = "who are you?";
     console.log("prompt:", prompt);
+
+    let p = document.createElement("p");
+    p.id = "response";
+    document.body.appendChild(p);
+    let response_element = document.getElementById("response");
+
     chat_completions({
         messages: [{ role: "user", content: prompt }],
         model: "mixtral-8x7b",
@@ -131,10 +148,11 @@ function chat_completions({
         on_chunk: (chunk) => {
             let delta = chunk.delta;
             if (delta.role) {
-                console.log("role:", delta.role);
+                // console.log("role:", delta.role);
             }
             if (delta.content) {
-                console.log("content:", delta.content);
+                // console.log("content:", delta.content);
+                response_element.innerHTML += delta.content;
                 return delta.content;
             }
             if (chunk.finish_reason === "stop") {
