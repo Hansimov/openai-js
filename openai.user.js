@@ -8,17 +8,20 @@
 // @grant        GM_xmlhttpRequest
 // ==/UserScript==
 
-function get_available_models() {
+const LLM_ENDPOINT = "https://hansimov-hf-llm-api.hf.space/api";
+
+function get_available_models({ endpoint } = {}) {
     return new Promise((resolve, reject) => {
         GM_xmlhttpRequest({
             method: "GET",
-            url: "https://hansimov-hf-llm-api.hf.space/api/v1/models",
+            url: endpoint + "/v1/models",
             headers: {
                 "Content-Type": "application/json",
             },
             onload: function (response) {
                 let data = JSON.parse(response.responseText);
-                resolve(data);
+                let models = data.data.map((item) => item.id);
+                resolve(models);
             },
             onerror: function (error) {
                 reject(error);
@@ -30,7 +33,7 @@ function get_available_models() {
 (function () {
     "use strict";
     console.log("OpenAI.user.js Loaded.");
-    get_available_models().then((data) => {
-        console.log("models data:", data);
+    get_available_models({ endpoint: LLM_ENDPOINT }).then((models) => {
+        console.log("models:", models);
     });
 })();
