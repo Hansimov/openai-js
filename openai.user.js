@@ -34,30 +34,25 @@ function jsonize_stream_data(data) {
     return json_chunks;
 }
 
-function process_stream_response(response, on_chunk) {
+async function process_stream_response(response, on_chunk) {
     let reader = response.response.getReader();
     let content = "";
 
-    function processStream() {
-        return reader.read().then(({ done, value }) => {
-            if (done) {
-                return content;
+    while (true) {
+        let { done, value } = await reader.read();
+        if (done) {
+            break;
+        }
+        let json_chunks = jsonize_stream_data(stringify_stream_bytes(value));
+        console.log("json_chunks:", json_chunks);
+        for (let json_chunk of json_chunks) {
+            let chunk = json_chunk.choices[0];
+            if (on_chunk) {
+                content += on_chunk(chunk);
             }
-            let json_chunks = jsonize_stream_data(
-                stringify_stream_bytes(value)
-            );
-            console.log("json_chunks:", json_chunks);
-            for (let json_chunk of json_chunks) {
-                let chunk = json_chunk.choices[0];
-                if (on_chunk) {
-                    content += on_chunk(chunk);
-                }
-            }
-            return processStream();
-        });
+        }
     }
-
-    return processStream();
+    return content;
 }
 
 function get_available_models({ endpoint } = {}) {
@@ -88,7 +83,6 @@ function chat_completions({
     temperature = 0.5,
     top_p = 0.95,
     stream = false,
-    on_chunk = null, // callback when stream is true
 } = {}) {
     return new Promise((resolve, reject) => {
         GM_xmlhttpRequest({
@@ -109,11 +103,7 @@ function chat_completions({
             responseType: stream ? "stream" : "json",
             onload: function (response) {
                 if (stream) {
-                    process_stream_response(response, on_chunk).then(
-                        (content) => {
-                            resolve(content);
-                        }
-                    );
+                    resolve(response);
                 } else {
                     let data = JSON.parse(response.responseText);
                     let content = data.choices[0].message.content;
@@ -141,11 +131,22 @@ function chat_completions({
     document.body.appendChild(p);
     let response_element = document.getElementById("response");
 
+    // chat_completions({
+    //     messages: [{ role: "user", content: prompt }],
+    //     model: "mixtral-8x7b",
+    //     stream: false,
+    // }).then((content) => {
+    //     console.log("content:", content);
+    //     response_element.innerHTML = content;
+    // });
+
     chat_completions({
         messages: [{ role: "user", content: prompt }],
         model: "mixtral-8x7b",
         stream: true,
-        on_chunk: (chunk) => {
+    }).then((response) => {
+        console.log("response:", response);
+        process_stream_response(response, (chunk) => {
             let delta = chunk.delta;
             if (delta.role) {
                 // console.log("role:", delta.role);
@@ -159,8 +160,6 @@ function chat_completions({
                 console.log("[Finished]");
             }
             return "";
-        },
-    }).then((content) => {
-        console.log("content:", content);
+        });
     });
 })();
