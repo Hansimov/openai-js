@@ -4,7 +4,7 @@
 // @version      0.3
 // @description  Tampermonkey user script for chatting with LLM endpoints in OpenAI format
 // @author       Hansimov
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=0.1
+// @icon         https://raw.githubusercontent.com/Hansimov/openai-js/master/penrose.png
 // @grant        GM_xmlhttpRequest
 // ==/UserScript==
 
