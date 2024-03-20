@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         OpenAI.js
+// @name         OpenAI-js
 // @namespace    http://tampermonkey.net/
 // @version      0.3
 // @description  Tampermonkey user script for chatting with LLM endpoints in OpenAI format
@@ -75,7 +75,7 @@ function on_chunk(chunk) {
     return "";
 }
 
-function get_available_models({ endpoint } = {}) {
+function get_llm_models({ endpoint } = {}) {
     return new Promise((resolve, reject) => {
         GM_xmlhttpRequest({
             method: "GET",
@@ -140,29 +140,45 @@ function chat_completions({
     });
 }
 
+// Main function
 (function () {
     "use strict";
-    console.log("OpenAI.user.js Loaded.");
-    get_available_models({ endpoint: LLM_ENDPOINT }).then((models) => {
-        console.log("models:", models);
-    });
-    let prompt = "who are you?";
-    // chat_completions({
-    //     messages: [{ role: "user", content: prompt }],
-    //     model: "mixtral-8x7b",
-    //     stream: false,
-    // }).then((content) => {
-    //     console.log("content:", content);
-    // });
-
-    console.log("prompt", prompt);
-    chat_completions({
-        messages: [{ role: "user", content: prompt }],
-        model: "mixtral-8x7b",
-        stream: true,
-    }).then((response) => {
-        process_stream_response(response, on_chunk).then((content) => {
-            console.log(content);
-        });
-    });
+    window.get_llm_models = get_llm_models;
+    window.chat_completions = chat_completions;
+    console.log("+ Plugin loaded: OpenAI-js");
 })();
+
+// Usage:
+
+// ===== Get LLM models ====== //
+
+// get_llm_models({ endpoint: LLM_ENDPOINT }).then((models) => {
+//     console.log("models:", models);
+// });
+
+// ====== Chat completions ====== //
+
+// let prompt = "who are you?";
+// console.log("prompt", prompt);
+
+// === stream is false === //
+
+// chat_completions({
+//     messages: [{ role: "user", content: prompt }],
+//     model: "mixtral-8x7b",
+//     stream: false,
+// }).then((content) => {
+//     console.log("content:", content);
+// });
+
+// === stream is true === //
+
+// chat_completions({
+//     messages: [{ role: "user", content: prompt }],
+//     model: "mixtral-8x7b",
+//     stream: true,
+// }).then((response) => {
+//     process_stream_response(response, on_chunk).then((content) => {
+//         console.log(content);
+//     });
+// });
